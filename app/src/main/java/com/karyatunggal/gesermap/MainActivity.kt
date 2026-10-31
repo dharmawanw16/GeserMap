@@ -31,12 +31,15 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.karyatunggal.gesermap.BuildConfig
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.appopen.AppOpenAd
+import com.google.android.gms.ads.appopen.AppOpenAd.AppOpenAdLoadCallback
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -87,6 +90,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener, OnMapReadyCallbac
     private lateinit var btnToggleMock: MaterialButton
     private lateinit var adView: AdView
     private var mInterstitialAd: InterstitialAd? = null
+    private var appOpenAd: AppOpenAd? = null
+    private var isAppOpenAdShowing = false
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var sensorManager: SensorManager
@@ -140,7 +145,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener, OnMapReadyCallbac
         magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
 
         // Initialize Google Mobile Ads SDK
-        MobileAds.initialize(this) {}
+        if (BuildConfig.SHOW_ADS) {
+            MobileAds.initialize(this) {
+                loadAppOpenAd()
+            }
+        }
 
         setContentView(R.layout.activity_main)
 
@@ -156,14 +165,20 @@ class MainActivity : AppCompatActivity(), SensorEventListener, OnMapReadyCallbac
         observeMockServiceState()
         requestLocationPermissions()
 
-        loadBannerAd()
-        loadInterstitialAd()
+        if (BuildConfig.SHOW_ADS) {
+            loadBannerAd()
+            loadInterstitialAd()
+        } else {
+            adView.visibility = View.GONE
+        }
         fetchRealLocationAndCenterMap()
     }
 
     override fun onResume() {
         super.onResume()
-        adView.resume()
+        if (BuildConfig.SHOW_ADS) {
+            adView.resume()
+        }
         checkDeveloperOptionsStatus()
         startLocationUpdates()
         fetchRealLocationAndCenterMap()
@@ -174,13 +189,17 @@ class MainActivity : AppCompatActivity(), SensorEventListener, OnMapReadyCallbac
 
     override fun onPause() {
         super.onPause()
-        adView.pause()
+        if (BuildConfig.SHOW_ADS) {
+            adView.pause()
+        }
         stopLocationUpdates()
         sensorManager.unregisterListener(this)
     }
 
     override fun onDestroy() {
-        adView.destroy()
+        if (BuildConfig.SHOW_ADS) {
+            adView.destroy()
+        }
         super.onDestroy()
     }
 
@@ -396,9 +415,55 @@ class MainActivity : AppCompatActivity(), SensorEventListener, OnMapReadyCallbac
                     MockLocationHelper.openDeveloperSettings(this)
                 } else {
                     cardDevOptionsWarning.visibility = View.GONE
-                    showInterstitialAdBeforeMock()
+                    if (BuildConfig.SHOW_ADS) {
+                        showInterstitialAdBeforeMock()
+                    } else {
+                        startMockLocationAction()
+                    }
                 }
             }
+        }
+    }
+
+    private fun loadAppOpenAd() {
+        if (!BuildConfig.SHOW_ADS || isAppOpenAdShowing) return
+        val adRequest = AdRequest.Builder().build()
+        AppOpenAd.load(
+            this,
+            "ca-app-pub-1187560780589863/6259270014", // App Open Ad Unit ID
+            adRequest,
+            object : AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    appOpenAd = ad
+                    showAppOpenAdIfAvailable()
+                }
+
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    appOpenAd = null
+                }
+            }
+        )
+    }
+
+    private fun showAppOpenAdIfAvailable() {
+        if (!BuildConfig.SHOW_ADS || isAppOpenAdShowing || isFinishing) return
+        appOpenAd?.let { ad ->
+            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    appOpenAd = null
+                    isAppOpenAdShowing = false
+                }
+
+                override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                    appOpenAd = null
+                    isAppOpenAdShowing = false
+                }
+
+                override fun onAdShowedFullScreenContent() {
+                    isAppOpenAdShowing = true
+                }
+            }
+            ad.show(this)
         }
     }
 
@@ -406,7 +471,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener, OnMapReadyCallbac
         val adRequest = AdRequest.Builder().build()
         InterstitialAd.load(
             this,
-            "ca-app-pub-3940256099942544/1033173712", // Test Interstitial Ad Unit ID
+            "ca-app-pub-1187560780589863/8944308954", // Interstitial Ad Unit ID
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(interstitialAd: InterstitialAd) {

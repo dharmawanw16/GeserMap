@@ -1,3 +1,11 @@
+import java.io.FileInputStream
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) load(FileInputStream(file))
+}
+
 plugins {
     alias(libs.plugins.android.application)
 }
@@ -16,8 +24,39 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    buildFeatures {
+        buildConfig = true
+        resValues = true
+    }
+
+    flavorDimensions += "edition"
+    productFlavors {
+        create("ads") {
+            dimension = "edition"
+            applicationId = "com.karyatunggal.gesermap"
+            resValue("string", "app_name", "GeserMap")
+            buildConfigField("boolean", "SHOW_ADS", "true")
+        }
+        create("adfree") {
+            dimension = "edition"
+            applicationId = "com.karyatunggal.gesermap.pro"
+            resValue("string", "app_name", "GeserMap Pro")
+            buildConfigField("boolean", "SHOW_ADS", "false")
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(localProperties.getProperty("STORE_FILE") ?: "my-release-key.jks")
+            storePassword = localProperties.getProperty("STORE_PASSWORD")
+            keyAlias = localProperties.getProperty("KEY_ALIAS")
+            keyPassword = localProperties.getProperty("KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
