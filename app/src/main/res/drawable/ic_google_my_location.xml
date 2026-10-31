@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
+  <!-- Outer Pulse/Halo -->
+  <path
+      android:fillColor="#501A73E8"
+      android:pathData="M20,20m-18,0a18,18 0 1,0 36,0a18,18 0 1,0 -36,0"/>
+  <!-- Middle White Border/Circle -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M20,20m-11,0a11,11 0 1,0 22,0a11,11 0 1,0 -22,0"/>
+  <!-- Inner Vibrant Blue Dot -->
+  <path
+      android:fillColor="#1A73E8"
+      android:pathData="M20,20m-8,0a8,8 0 1,0 16,0a8,8 0 1,0 -16,0"/>
+</vector>
